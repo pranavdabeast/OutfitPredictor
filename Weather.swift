@@ -2,13 +2,12 @@
 //  Weather.swift
 //  Outfit Recommender
 //
-//  Created by Brian Advent- [Website]
+//  Created by Brian Advent- [https://github.com/brianadvent/JSONBasics/blob/master/JSON/Weather.swift]
 
 
 import Foundation
 
 struct Weather {
-    let summary:String
     let apparentTemperature:Double
     
     
@@ -19,14 +18,9 @@ struct Weather {
     
     
     init(json:[String:Any]) throws {
-        guard let summary = json["summary"] as? String else {throw SerializationError.missing("summary is missing")}
         
         guard let apparentTemperature = json["apparentTemperature"] as? Double else {throw SerializationError.missing("apparentTemperature is missing")}
         
-        
-        
-        
-        self.summary = summary
         self.apparentTemperature = apparentTemperature
                 
     } //error messages and declarations for summary, tempHigh, and tempLow
