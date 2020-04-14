@@ -9,7 +9,7 @@ import Foundation
 
 struct Weather {
     let apparentTemperature:Double
-    
+    let time:Double
     
     enum SerializationError:Error {
         case missing(String)
@@ -21,9 +21,11 @@ struct Weather {
         
         guard let apparentTemperature = json["apparentTemperature"] as? Double else {throw SerializationError.missing("apparentTemperature is missing")}
         
+        guard let time = json["time"] as? Double else {throw SerializationError.missing("time is missing")}
+        
         self.apparentTemperature = apparentTemperature
-                
-    } //error messages and declarations for summary, tempHigh, and tempLow
+        self.time = time
+    } //error messages and declarations for apparentTemperature and time
     
     
     static let basePath = "https://api.darksky.net/forecast/c3b2b5cf5b4d050444e22e23f809fab4/"
