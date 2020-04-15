@@ -1,5 +1,3 @@
-import UIKit
-
 //
 //  ViewController.swift
 //  Outfit Recommender
@@ -9,6 +7,7 @@ import UIKit
 //
 
 import UIKit
+import Foundation
 var forecastData = [Weather]() //Array to impoort weather objects into
 
 class ViewController: UIViewController {
@@ -49,13 +48,28 @@ class ViewController: UIViewController {
         
     }
 
+    func UNIXconverter(timearray : Array<Double>) -> Array<String> {
+        var timestrings = [String]()
+        
+        for times in timearray {
+                                                  
+                           let date = Date(timeIntervalSince1970: times)
+                           let dateFormatter = DateFormatter()
+                           dateFormatter.timeStyle = DateFormatter.Style.medium //Set time style
+                           dateFormatter.timeZone = .current
+                           let localDate = dateFormatter.string(from: date)
+                           timestrings.append(localDate)
+                           
+                   }
+        return timestrings
+    }
 //Function that predicts clothes for 1)average temperature and 2) any temperature spikes or dips. Takes in array of 12 double values and ouputs array of strings
-    func Predictclothes(temp12: Array<Double>, times : Array<Double> /*timehour: Int*/) -> Array<String> {
+    func Predictclothes(temp12: Array<Double>, times : Array<String> /*timehour: Int*/) -> Array<String> {
         
         let seventyabove = "shorts and T-shirt" //Hypothetical preferences
         let fortyabove = "jeans/pants and jacket"
         let fortybelow = "heavy coat"
-        let dict = [1 : "shorts and T-shirt", 2 : "jeans/pants and jacket", 3 : "heavy coat"] // For potential use of dictionaries
+//        let dict = [1 : "shorts and T-shirt", 2 : "jeans/pants and jacket", 3 : "heavy coat"] // For potential use of dictionaries
         
         var totalsum = 0 //used for average calculation
         var itemcount = 0 //used ot count the total number of items in order to calculate average
@@ -65,6 +79,7 @@ class ViewController: UIViewController {
         var tempspikeresults = [String]() //array for addition of strings
         var clothespredictorarray = [String]()
         var dictindex = 0 //for potential use of dictionaries
+        var prevstring:String = "" //for comparisons in weather spikes
         
         //Averaging func
         for hours in temp12 {
@@ -72,25 +87,25 @@ class ViewController: UIViewController {
             itemcount = itemcount + 1
         }
         let average = (totalsum / itemcount)
-        print("Average Temperature over the next 12 hours = \(average)")
+//        print("Average Temperature over the next 12 hours = \(average)")
         
         
         /* The following chunk of code is a general predictor for clothes based on the average temperature over the next 12 hours. It also establishes the ranges for certain types of clothing*/
         if average > 70 {
-            clothespredictorarray.append(seventyabove) //Adds general clothing reccomendation to final clothing array
+            clothespredictorarray.append("Average Temperature over the next 12 hours = \(average). Wear \(seventyabove)") //Adds general clothing reccomendation to final clothing array
             thresholdmin = 70
             thresholdmax = 120
             dictindex = 1 //for dictionary
         }
         if average < 70 && average > 40 {
-            clothespredictorarray.append(fortyabove)
+            clothespredictorarray.append("Average Temperature over the next 12 hours = \(average). Wear \(fortyabove)")
             thresholdmin = 40
             thresholdmax = 70
             dictindex = 2 //for dictionary
             
         }
         if average < 40 {
-            clothespredictorarray.append(fortybelow)
+            clothespredictorarray.append("Average Temperature over the next 12 hours = \(average). Wear \(fortybelow)")
             thresholdmin = 0
             thresholdmax = 40
             dictindex = 3 //for dictionary
@@ -105,78 +120,73 @@ class ViewController: UIViewController {
         
         //Checks if temperature jumps into a higher or lower category and appends the result to temperaturespikearray
         for temp in temp12 {
+            
+                if temp > thresholdmin && temp < thresholdmax {
+                    tempspikeresults.append("Temperature returns to average")
+                
+                }
+                
+                if temp > thresholdmax && temp < highnumber {
+                    tempspikeresults.append("Temperature raises")
+                    
+                }
+                    
+                if temp < thresholdmin && temp > lownumber {
+                    tempspikeresults.append("Temperature dips")
+                }
+                
             index = index + 1
-            if temp > thresholdmin && temp < thresholdmax {
-                tempspikeresults.append("Temperature returns to average")
-            
-            }
-            
-            if temp > thresholdmax && temp < highnumber {
-                tempspikeresults.append("Temperature raises to higher domain")
-                dictindex = dictindex - 1
-                
-            }
-                
-            if temp < thresholdmin && temp > lownumber {
-                tempspikeresults.append("Temperature dips to lower domain")
-                dictindex = dictindex + 1
-            }
-            
         }
         
         index = 0 //Re-using index
         
-
+        
         //Appends time for each temperature spike or drop and reccomends clothing for those spikes or drops
         for items in tempspikeresults {
             
-            if items == "Temperature returns to average" {
-//                var militaryhour = timehour + index
-//
-//                if militaryhour > 24 {
-//                    militaryhour = militaryhour - 24
-//                }
+            if index == 0 {
+                prevstring = items
             }
             
-            if items == "Temperature raises to higher domain" {
+            if items == "Temperature returns to average" {
                 
-                
-//                var militaryhour = timehour + index //Adds index number to current time to find when spike will occur
-//                 if militaryhour > 24 {
-//                     militaryhour = militaryhour - 24 //To loop hours back into 24-hour format
-//                 }
-                clothespredictorarray.append("\(items) at \(times[index])") //Appends weather change notification + time to final array
+            }
+            
+            if items == "Temperature raises" {
+                if items != prevstring {
+                    dictindex = dictindex - 1
+                }
+//                clothespredictorarray.append("\(items) at \(times[index])") //Appends weather change notification + time to final array
 
-                /* if dictindex == 1 {
-                    print("Wear \(seventyabove)")
+                if dictindex == 1 {
+                    clothespredictorarray.append("\(items) at \(times[index]). Wear \(seventyabove)")
                 }
 
                 if dictindex == 2 {
-                    print("Wear \(fortyabove)")
-                } */
+                    clothespredictorarray.append("\(items) at \(times[index]). Wear \(fortyabove)")
+                }
                 
             }
             
-            if items == "Temperature dips to lower domain" {
+            if items == "Temperature dips" {
                 
-//                var militaryhour = timehour + index
-//                 if militaryhour > 24 {
-//                     militaryhour = militaryhour - 24
-//                 }
+                if items != prevstring {
+                    dictindex = dictindex + 1
+                }
+//                clothespredictorarray.append("\(items) at \(times[index]).") //Appends weather change notification + time to final array
                 
-                 clothespredictorarray.append("\(items) at \(times[index])") //Appends weather change notification + time to final array
-                
-                /* if dictindex == 2 {
-                    print("Wear \(fortyabove)")
+                if dictindex == 2 {
+                    clothespredictorarray.append("\(items) at \(times[index]). Wear \(fortyabove)")
                 }
                 
                 if dictindex == 3 {
-                    print("Wear \(fortybelow)")
-                } */
+                    clothespredictorarray.append("\(items) at \(times[index]). Wear \(fortybelow)")
+                }
                 
             }
             
             index = index + 1
+            prevstring = items
         }
         return(clothespredictorarray)
     }
@@ -190,6 +200,7 @@ class ViewController: UIViewController {
         var temperaturearray = [Double]()
         var timearray = [Double]()
         var clothespredictorarray = [String]()
+        var timestrings = [String]()
         
 //        // *** Create date ***
 //        let date = Date()
@@ -217,7 +228,9 @@ class ViewController: UIViewController {
             
             timearray = self.shorten12time(array: results) //Calling shorten12 for the times
             
-            clothespredictorarray = self.Predictclothes(temp12: temperaturearray, times: timearray/*,timehour: hour*/)
+            timestrings = self.UNIXconverter(timearray: timearray)
+            
+            clothespredictorarray = self.Predictclothes(temp12: temperaturearray, times: timestrings/*,timehour: hour*/)
             
             for items in clothespredictorarray {
                 print(items)
@@ -226,7 +239,6 @@ class ViewController: UIViewController {
 //            print(results[0].apparentTemperature)
 
         // Do any additional setup after loading the view.
-            
             }
         }
 }
