@@ -8,6 +8,7 @@
 
 import UIKit
 import Foundation
+import CoreLocation
 
 class ViewController: UIViewController, UITextFieldDelegate {
     
@@ -16,11 +17,17 @@ class ViewController: UIViewController, UITextFieldDelegate {
     @IBOutlet weak var fortyabovefield: UITextField!
     @IBOutlet weak var fortybelowfield: UITextField!
     @IBOutlet weak var textdisplay: UITextView!
+    @IBOutlet weak var locationField: UITextField!
+    
+    let locationManager = CLLocationManager() //For location/Weather purposes
+    var Latitude = 0.0
+    var Longitude = 0.0
     
     struct Keys {
         static let seventyaboveweather = "seventyaboveweather"
         static let fortyaboveweather = "fortyaboveweather"
         static let fortybelowweather = "fortybelowweather"
+        static let locationEntry = "locationEntry"
     } //To prevent spelling errors in keys for Defaults
     
 
@@ -54,7 +61,6 @@ class ViewController: UIViewController, UITextFieldDelegate {
             }
 
         } //Function that shortens list of 48 hourly data objects to 12- takes in array of weather objects and outputs array of doubles
-
         return(timearray)
         
     }
@@ -90,7 +96,7 @@ class ViewController: UIViewController, UITextFieldDelegate {
         var clothespredictorarray = [String]()
         var dictindex = 0 //For domain jumps in spikes/dips
         var prevstring:String = "" //For comparisons to previous weather spikes
-        
+        var changecounter = 0 //To count weather changes
         
         for hours in temp12 {
             totalsum = totalsum + Int(hours)
@@ -170,13 +176,13 @@ class ViewController: UIViewController, UITextFieldDelegate {
                 if dictindex == 2 {
                     clothespredictorarray.append("\(items) at \(times[index]). Wear \(fortyabove)")
                 }
-                
+                changecounter = changecounter + 1
             }
             
             if items == "Temperature dips" {
                 
                 if index == 0 || items != prevstring {
-                    dictindex = dictindex - 1
+                    dictindex = dictindex + 1
                 }
                 
                 if dictindex == 2 {
@@ -186,11 +192,15 @@ class ViewController: UIViewController, UITextFieldDelegate {
                 if dictindex == 3 {
                     clothespredictorarray.append("\(items) at \(times[index]). Wear \(fortybelow)")
                 }
-                
+                changecounter = changecounter + 1
             }
             
             index = index + 1
             prevstring = items
+        }
+        
+        if changecounter == 0 {
+            clothespredictorarray.append("No major changes in temperature over the next 12 hours")
         }
         return(clothespredictorarray)
     }
@@ -202,8 +212,10 @@ class ViewController: UIViewController, UITextFieldDelegate {
         seventyabovefield.delegate = self
         fortyabovefield.delegate = self
         fortybelowfield.delegate = self
+        locationField.delegate = self
         
         checkForSavedPreferences()
+        getLocation()
 
     }//Sets delegates and fills in saved preferences
     
@@ -215,53 +227,89 @@ class ViewController: UIViewController, UITextFieldDelegate {
         defaults.set(seventyabovefield.text!, forKey: Keys.seventyaboveweather)
         defaults.set(fortyabovefield.text!, forKey: Keys.fortyaboveweather)
         defaults.set(fortybelowfield.text!, forKey: Keys.fortybelowweather)
-
+        defaults.set(locationField.text!, forKey: Keys.locationEntry)
     } //Sets input information as default
     
     func checkForSavedPreferences() {
         let seventyaboveclothingpreference = defaults.value(forKey: Keys.seventyaboveweather) as? String ?? ""
         let fortyaboveclothingpreference = defaults.value(forKey: Keys.fortyaboveweather) as? String ?? ""
         let fortybelowclothingpreference = defaults.value(forKey: Keys.fortybelowweather) as? String ?? ""
+        let locationEntryPreference = defaults.value(forKey: Keys.locationEntry) as? String ?? ""
+        
         seventyabovefield.text = seventyaboveclothingpreference
         fortyabovefield.text = fortyaboveclothingpreference
         fortybelowfield.text = fortybelowclothingpreference
+        locationField.text = locationEntryPreference
+        
     } //Fills in default information when app is opened
     
     @IBAction func predictButtonTapped(_ sender: UIButton) {
         
-        var forecastData = [Weather]() //Array to import weather objects into
         var temperaturearray = [Double]()
         var timearray = [Double]()
         var clothespredictorarray = [String]()
         var timestrings = [String]()
-
-        Weather.forecast(withLocation: "32.7767,-96.7970") { (results:[Weather]) in
+        let coordinatesAPI = "\(Latitude),\(Longitude)"
+       
+        Weather.forecast(withLocation: coordinatesAPI) { (results:[Weather]) in
 
                 temperaturearray = self.shorten12Temp(array:results) //Caling shorten 12 by passing an array, called "array" of results
-
                 timearray = self.shorten12Time(array: results) //Calling shorten12 for the times
-
                 timestrings = self.unixConverter(timearray: timearray)//Calling unixConverter
-
                 clothespredictorarray = self.predictClothes(temp12: temperaturearray, times: timestrings)
                             
-                let joinedclothespredictorarray = clothespredictorarray.joined(separator: "\n")
+                let joinedclothespredictorarray = clothespredictorarray.joined(separator: "\n") //megring results in clothespredictorarray to display on UI
                             
                 DispatchQueue.main.async {
                     self.textdisplay.text = "\(joinedclothespredictorarray)"
                 }//Displays clothespredictorarray on phone screen
-
         }
         
     }//When predictButton is tapped, the main code is run with the algorithm.
-
+    
+    func getLocation() {
+        
+        guard let locationfield = locationField.text else { return }
+        
+        self.locationManager.getLocation(forPlaceCalled: locationfield) { location in
+            guard let location = location else { return }
+            self.Latitude = location.coordinate.latitude //setting latitude
+            self.Longitude = location.coordinate.longitude //setting longitude
+//            print(self.Latitude)
+//            print(self.Longitude)
+            
+        }
+    }//getLocation gets coordinates of the location that the user typed in.
 }
+
+extension CLLocationManager {
     
     
-    
-//extension ViewController: UITextFieldDelegate {
-//    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-//        textField.resignFirstResponder()
-//        return true
-//    }
-//}
+    func getLocation(forPlaceCalled name: String,
+                     completion: @escaping(CLLocation?) -> Void) {
+        
+        let geocoder = CLGeocoder()
+        geocoder.geocodeAddressString(name) { placemarks, error in
+            
+            guard error == nil else {
+                print("*** Error in \(#function): \(error!.localizedDescription)")
+                completion(nil)
+                return
+            }
+            
+            guard let placemark = placemarks?[0] else {
+                print("*** Error in \(#function): placemark is nil")
+                completion(nil)
+                return
+            }
+            
+            guard let location = placemark.location else {
+                print("*** Error in \(#function): placemark is nil")
+                completion(nil)
+                return
+            }
+
+            completion(location)
+        }
+    }
+}//To translate user input to coordinates
